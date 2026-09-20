@@ -1,0 +1,4 @@
+device_id,ip_address,session_start,session_end,domain_accessed,data_mb,imei,location_lat,location_long
+Samsung Galaxy S23,103.14.57.89,2024-03-15T11:00:00,2024-03-15T11:08:00,wazirx.com,12.4,35-XXXXXX-000001-7,19.1860,72.8480
+Samsung Galaxy S23,103.14.57.89,2024-03-15T11:09:00,2024-03-15T11:15:00,hdfcbank.com,3.1,35-XXXXXX-000001-7,19.1860,72.8480
+OnePlus 11,45.32.87.211,2024-03-15T02:14:00,2024-03-15T03:40:00,tor-exit.node,890.2,35-XXXXXX-999002-1,0,0

@@ -1,0 +1,225 @@
+---
+interface Props {
+  title?: string;
+  subtitle?: string;
+  breadcrumb?: { label: string; href?: string }[];
+  alertCount?: number;
+  alertItems?: { label: string; detail?: string; severity?: string }[];
+}
+const { title = 'Intelligence Hub', subtitle = '', breadcrumb = [], alertCount, alertItems = [] } = Astro.props;
+const parsedCount = parseInt(alertCount as any) || 0;
+const hasAlerts = parsedCount > 0;
+---
+
+<header class="topbar">
+  <div class="topbar-title-group">
+    {breadcrumb.length > 0 && (
+      <nav aria-label="Breadcrumb" class="topbar-breadcrumb">
+        <a href="/" class="breadcrumb-link">IntelTrace</a>
+        {breadcrumb.map(b => (
+          <span class="breadcrumb-item">
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">{b.label}</span>
+          </span>
+        ))}
+      </nav>
+    )}
+    <h1 class="topbar-title">{title}</h1>
+    {subtitle && <div class="topbar-sub">{subtitle}</div>}
+  </div>
+
+  <div class="topbar-right">
+    <div class="sys-pill">
+      <div class="sys-dot"></div>
+      OPERATIONAL
+    </div>
+    <div class="topbar-time" id="tb-clock"></div>
+
+    <!-- Notification Bell with dropdown -->
+    <div class="alert-wrap" id="alert-wrap">
+      <button
+        class="alert-btn"
+        id="alert-bell"
+        type="button"
+        title={hasAlerts ? `${parsedCount} active forensic alerts` : 'Forensic telemetry alert feed'}
+        onclick="toggleAlertPanel()"
+        data-count={parsedCount}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        {hasAlerts && <span class="alert-count">{parsedCount}</span>}
+      </button>
+
+      <!-- Notification Dropdown Panel -->
+      <div class="alert-panel hidden" id="alert-panel" role="dialog" aria-label="Forensic Alerts">
+        <div class="alert-panel-head">
+          <span class="alert-panel-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Forensic Alert Feed
+          </span>
+          {hasAlerts && <span class="alert-panel-badge">{parsedCount} Active</span>}
+        </div>
+
+        <div class="alert-panel-body" id="alert-panel-body">
+          {alertItems.length > 0 ? alertItems.map(item => (
+            <div class={`alert-item alert-item-${(item.severity || 'medium').toLowerCase()}`}>
+              <div class="alert-item-label">{item.label}</div>
+              {item.detail && <div class="alert-item-detail">{item.detail}</div>}
+            </div>
+          )) : hasAlerts ? (
+            <div class="alert-item alert-item-high">
+              <div class="alert-item-label">Behavioural Anomaly Detection Active</div>
+              <div class="alert-item-detail">{parsedCount} signals flagged by the correlation engine — open Case Results to review.</div>
+            </div>
+          ) : (
+            <div class="alert-empty">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>No active alerts. Telemetry nominal.</span>
+            </div>
+          )}
+        </div>
+
+        {hasAlerts && (
+          <div class="alert-panel-foot">
+            <a href="/results" class="alert-panel-link">View full case analysis →</a>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <a href="/new-investigation" class="cta-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+      New Investigation
+    </a>
+  </div>
+</header>
+
+<style>
+.alert-wrap {
+  position: relative;
+}
+.alert-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  background: rgba(5, 8, 22, 0.97);
+  border: 1px solid rgba(255, 71, 87, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+  z-index: 200;
+  overflow: hidden;
+}
+.alert-panel.hidden { display: none; }
+.alert-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.alert-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.alert-panel-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--danger);
+  background: rgba(255, 71, 87, 0.12);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+}
+.alert-panel-body {
+  padding: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alert-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid;
+}
+.alert-item-critical, .alert-item-high {
+  background: rgba(255, 71, 87, 0.07);
+  border-color: #FF4757;
+}
+.alert-item-medium {
+  background: rgba(255, 179, 0, 0.07);
+  border-color: #FFB300;
+}
+.alert-item-low {
+  background: rgba(0, 212, 255, 0.07);
+  border-color: var(--cyan);
+}
+.alert-item-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+.alert-item-detail {
+  font-size: 0.68rem;
+  color: var(--text-2);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.alert-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  text-align: center;
+}
+.alert-panel-foot {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.alert-panel-link {
+  font-size: 0.7rem;
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 600;
+}
+.alert-panel-link:hover { text-decoration: underline; }
+</style>
+
+<script is:inline>
+(function() {
+  function tick() {
+    var el = document.getElementById('tb-clock');
+    if (el) el.textContent = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+  }
+  tick();
+  setInterval(tick, 30000);
+
+  document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('alert-wrap');
+    var panel = document.getElementById('alert-panel');
+    if (wrap && panel && !wrap.contains(e.target)) {
+      panel.classList.add('hidden');
+    }
+  });
+})();
+
+function toggleAlertPanel() {
+  var panel = document.getElementById('alert-panel');
+  if (panel) panel.classList.toggle('hidden');
+}
+</script>
+

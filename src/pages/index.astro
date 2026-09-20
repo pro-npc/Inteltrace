@@ -1,0 +1,319 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Shell/Sidebar.astro';
+import Topbar from '../components/Shell/Topbar.astro';
+import { getEnv } from '../lib/http';
+import { requireSession } from '../lib/auth';
+import { getDashboard, STATS_BASELINE, type CaseListRow } from '../lib/cases';
+
+const env = getEnv(Astro.locals);
+const guard = await requireSession(Astro.request, env);
+if (!guard) return Astro.redirect('/login');
+Astro.response.headers.append('set-cookie', guard.setCookie);
+
+let dash: Awaited<ReturnType<typeof getDashboard>>;
+try {
+  dash = await getDashboard(env);
+} catch {
+  dash = {
+    stats: { ...STATS_BASELINE },
+    recent: [],
+    criticalCases: [],
+    totalCases: 0,
+    riskBreakdown: { high: 0, medium: 0, low: 0, total: 0 },
+    sourceVectors: [
+      { label: 'CDR Telecom',   sourceKey: 'cdr',    casesCount: 0, flags: 0, pct: 0, color: '#00FF9D' },
+      { label: 'IPDR Internet', sourceKey: 'ipdr',   casesCount: 0, flags: 0, pct: 0, color: '#FF6B00' },
+      { label: 'Bank Records',  sourceKey: 'bank',   casesCount: 0, flags: 0, pct: 0, color: '#34D399' },
+      { label: 'Social Media',  sourceKey: 'social', casesCount: 0, flags: 0, pct: 0, color: '#F472B6' },
+      { label: 'Blockchain',    sourceKey: 'crypto', casesCount: 0, flags: 0, pct: 0, color: '#FFB300' },
+    ],
+    activityTelemetry: {
+      caseId: '',
+      dateLabel: '',
+      hourlyCounts: new Array(24).fill(0),
+      peakHour: -1,
+      peakHourLabel: 'None',
+      totalEvents: 0,
+    },
+  };
+}
+const s = dash.stats;
+const recent = dash.recent;
+
+// Unified stat card colors — shades of blue/slate, no rainbow overload
+const stats = [
+  { val: s.activeCases.toLocaleString('en-IN'),       label: 'Active Cases',       delta: `${dash.totalCases} in registry`, color: '#8AABFF', icon: 'activity', up: true },
+  { val: s.reportsGenerated.toLocaleString('en-IN'),  label: 'Reports Generated',  delta: 'court-ready dossiers',           color: '#68D391', icon: 'file',     up: true },
+  { val: s.anomaliesDetected.toLocaleString('en-IN'), label: 'Anomalies Detected', delta: 'across all sources',             color: '#F6E05E', icon: 'alert',    up: true },
+  { val: s.criticalAlerts.toLocaleString('en-IN'),    label: 'Critical Alerts',    delta: 'high-risk investigations',       color: '#FC8181', icon: 'bell',     up: false },
+];
+
+// Dynamic severity split for the donut
+const donutTotal = s.activeCases;
+const donutHigh = dash.riskBreakdown?.high ?? 0;
+const donutMed = dash.riskBreakdown?.medium ?? 0;
+const donutLow = dash.riskBreakdown?.low ?? 0;
+
+// SVG Circumference = 2 * PI * 40 = ~251.327
+const C = 251.327;
+const highArc = donutTotal > 0 ? (donutHigh / donutTotal) * C : 0;
+const medArc = donutTotal > 0 ? (donutMed / donutTotal) * C : 0;
+const lowArc = donutTotal > 0 ? (donutLow / donutTotal) * C : 0;
+
+const latestCase = dash.recent[0]?.id || 'CASE-2024-0892';
+const broadcastMsg = dash.recent.length > 0 
+  ? `New behavioral anomaly detected in ${latestCase}. Engine active and monitoring ${s.activeCases} concurrent investigations.`
+  : `System active and monitoring zero trust environments.`;
+
+const act = dash.activityTelemetry;
+const hasTelemetryCase = Boolean(act?.caseId);
+const telemetryMax = Math.max(1, ...(act?.hourlyCounts || [1]));
+const threatLevel = s.criticalAlerts > 0 ? 'CRITICAL' : s.activeCases > 0 ? 'ELEVATED' : 'STANDBY';
+
+// Notification bell contents. Built from the very list that produces the badge count,
+// so the number on the bell and the rows inside it can never disagree — the earlier
+// bug was a count with no items behind it, which opened to an empty panel.
+const alertItems = dash.criticalCases.slice(0, 8).map((c) => ({
+  label: `${c.id} — ${c.suspect}`,
+  detail: `Risk ${c.score}/100 · ${c.correlations} correlation${c.correlations === 1 ? '' : 's'} · ${c.anomalies} anomal${c.anomalies === 1 ? 'y' : 'ies'} · ${c.sources.join(', ') || 'no sources'}`,
+  severity: c.score >= 85 ? 'CRITICAL' : 'HIGH',
+}));
+---
+
+<Layout title="IntelTrace — Intelligence Hub">
+  <div class="shell">
+    <Sidebar activePage="dashboard" threatLevel={threatLevel} />
+    <main class="main">
+      <Topbar title="Intelligence Hub" subtitle={`Live forensic telemetry · ${s.activeCases} active investigation${s.activeCases === 1 ? '' : 's'}`} alertCount={s.criticalAlerts} alertItems={alertItems} />
+
+      <!-- Notification Bar -->
+      <div style="background:rgba(99,140,255,0.06);border-bottom:1px solid rgba(99,140,255,0.14);padding:9px 22px;display:flex;align-items:center;gap:12px;font-size:0.77rem">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--blue-lt);box-shadow:0 0 6px var(--blue-lt);animation:pulse 2s infinite;flex-shrink:0"></div>
+        <span style="color:var(--blue-lt);font-weight:700;font-family:var(--font-mono);letter-spacing:0.04em;font-size:0.68rem">SYSTEM BROADCAST:</span>
+        <span style="color:var(--text-1);font-weight:400">{broadcastMsg}</span>
+      </div>
+
+      <div class="page-body">
+
+        <!-- ── Stat Cards ────────────────────────────────────── -->
+        <div class="stat-grid">
+          {stats.map((s, i) => (
+            <div class="stat-card reveal" style={`animation-delay:${i*80}ms`}>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div class="stat-label">{s.label}</div>
+                <div class="stat-icon" style={`background:${s.color}15;border:1px solid ${s.color}30`}>
+                  {s.icon === 'activity' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={s.color} stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>}
+                  {s.icon === 'file'     && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={s.color} stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+                  {s.icon === 'alert'    && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={s.color} stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>}
+                  {s.icon === 'bell'     && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={s.color} stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>}
+                </div>
+              </div>
+              <div class="stat-value tnum" style={`color:${s.color}`}>{s.val}</div>
+              <div class={`stat-delta ${s.up ? 'up' : 'danger-text'}`}>
+                {s.up ? '↑ ' : '● '}{s.delta}
+              </div>
+              <!-- Clean Sparkline -->
+              <svg class="sparkline" viewBox="0 0 72 36" fill="none">
+                <polyline points={i===0?"0,30 10,24 20,26 30,14 42,18 55,10 65,6 72,4":i===1?"0,32 10,28 22,20 34,22 46,12 58,16 66,8 72,6":i===2?"0,20 12,26 22,16 34,28 44,10 56,18 64,10 72,14":"0,28 10,18 22,22 34,10 46,16 56,8 64,14 72,6"} stroke={s.color} stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </div>
+          ))}
+        </div>
+
+        <!-- ── Charts Row ─────────────────────────────────────── -->
+        <div class="responsive-grid-stack" style="display:grid;grid-template-columns:1fr 270px;gap:12px">
+          <!-- Source Distribution -->
+          <div class="card reveal" style="animation-delay:300ms">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Events by Data Source</div>
+                <div class="card-sub">Flag density across ingested telecom, bank & social vectors</div>
+              </div>
+              <span class="badge b-active">LIVE</span>
+            </div>
+            <div style="padding:16px 20px 18px;display:flex;flex-direction:column;gap:14px">
+              {dash.sourceVectors.map((r, ri) => {
+                // unified blue-family shades per row — no rainbow
+                const rowColors = ['#8AABFF','#A3BFFA','#BEA6FF','#B794F4','#81E6D9'];
+                const rc = rowColors[ri % rowColors.length];
+                // Fill via scaleX rather than width: transform is compositor-only,
+                // so the bars cannot thrash layout on the dashboard's first paint.
+                const fill = Math.max(r.pct, r.casesCount > 0 ? 8 : 0) / 100;
+                return (
+                <div style="display:grid;grid-template-columns:130px 1fr 90px;align-items:center;gap:12px">
+                  <span style="font-size:0.78rem;font-weight:500;color:var(--text-1)">{r.label}</span>
+                  <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+                    <div style={`height:100%;width:100%;transform:scaleX(${fill});transform-origin:left center;background:${rc};transition:transform 1s cubic-bezier(0.25,1,0.5,1)`}></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:0.71rem;font-family:var(--font-mono);color:var(--text-2)">{r.casesCount} cases</span>
+                    <span style={`font-size:0.69rem;font-family:var(--font-mono);font-weight:600;color:${rc}`}>{r.flags} ⚑</span>
+                  </div>
+                </div>
+              )})}
+            </div>
+          </div>
+
+          <!-- Risk Donut -->
+          <div class="card reveal" style="animation-delay:380ms">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Risk Severity & Posture</div>
+                <div class="card-sub">Active case breakdown & overall security posture</div>
+              </div>
+            </div>
+            <div style="padding:16px 20px 18px;display:flex;flex-direction:column;align-items:center;gap:14px">
+              <svg viewBox="0 0 110 110" width="110" height="110">
+                <defs>
+                  <filter id="donut-glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="4" result="blur"/>
+                    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                  </filter>
+                </defs>
+                <circle cx="55" cy="55" r="40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="12"/>
+                {donutTotal > 0 && highArc > 0 && (
+                  <circle cx="55" cy="55" r="40" fill="none" stroke="#FC8181" stroke-width="12" filter="url(#donut-glow)" stroke-dasharray={`${highArc} ${C - highArc}`} stroke-dashoffset="0" transform="rotate(-90 55 55)"/>
+                )}
+                {donutTotal > 0 && medArc > 0 && (
+                  <circle cx="55" cy="55" r="40" fill="none" stroke="#F6E05E" stroke-width="12" filter="url(#donut-glow)" stroke-dasharray={`${medArc} ${C - medArc}`} stroke-dashoffset={`-${highArc}`} transform="rotate(-90 55 55)"/>
+                )}
+                {donutTotal > 0 && lowArc > 0 && (
+                  <circle cx="55" cy="55" r="40" fill="none" stroke="#68D391" stroke-width="12" filter="url(#donut-glow)" stroke-dasharray={`${lowArc} ${C - lowArc}`} stroke-dashoffset={`-${highArc + medArc}`} transform="rotate(-90 55 55)"/>
+                )}
+                <text x="55" y="52" text-anchor="middle" font-family="Inter, sans-serif" font-size="21" font-weight="800" fill="#EEF2FF" letter-spacing="-0.04em" filter="url(#donut-glow)">{donutTotal}</text>
+                <text x="55" y="66" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" font-weight="600" fill="#8AABFF" letter-spacing="0.08em">ACTIVE</text>
+              </svg>
+              <div style="display:flex;flex-direction:column;gap:7px;width:100%">
+                {[['#FC8181','High Risk',String(donutHigh)],['#F6E05E','Medium Risk',String(donutMed)],['#68D391','Low Risk',String(donutLow)]].map(([c,l,v]) => (
+                  <div style="display:flex;align-items:center;gap:8px;font-size:0.76rem;color:var(--text-1)">
+                    <div style={`width:7px;height:7px;border-radius:2px;background:${c};flex-shrink:0`}></div>
+                    <span style="flex:1;color:var(--text-2)">{l}</span>
+                    <strong style={`font-family:var(--font-mono);font-size:0.82rem;color:${c}`}>{v}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Heatmap / Activity Telemetry ───────────────────── -->
+        <div class="card reveal" style="animation-delay:460ms">
+          <div class="card-header">
+            <div>
+              <div class="card-title">24-Hour Activity Telemetry</div>
+              <div class="card-sub">
+                {hasTelemetryCase
+                  ? `Hourly event density — Case ${act.caseId}${act.dateLabel ? ` · ${act.dateLabel}` : ''}`
+                  : 'Hourly event density — No investigations registered in system'}
+              </div>
+            </div>
+            {hasTelemetryCase ? (
+              <a href={`/results?case=${encodeURIComponent(act.caseId)}`} style="font-size:0.64rem;font-family:var(--font-mono);color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(0,212,255,0.25);border-radius:4px;padding:3px 8px;text-decoration:none">{act.caseId}</a>
+            ) : (
+              <span style="font-size:0.64rem;font-family:var(--font-mono);color:var(--text-3);background:rgba(255,255,255,0.03);border:1px solid var(--border-1);border-radius:4px;padding:3px 8px">STANDBY</span>
+            )}
+          </div>
+          <div style="padding:16px 20px 18px">
+            <div style="display:flex;gap:4px;align-items:flex-end;height:55px">
+              {Array.from({length:24},(_,h) => {
+                const count = act?.hourlyCounts?.[h] ?? 0;
+                const ratio = count > 0 ? count / telemetryMax : 0;
+                const barH = count > 0 ? Math.max(Math.round(ratio * 46), 7) : 3;
+                const op = count > 0 ? (ratio * 0.75) + 0.25 : 0.07;
+                return (
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+                    <div
+                      style={`height:${barH}px;width:100%;min-width:8px;background:${count > 0 ? `linear-gradient(180deg, rgba(99,140,255,${op}) 0%, rgba(99,140,255,0.04) 100%)` : 'rgba(255,255,255,0.04)'};border-radius:4px 4px 0 0;box-shadow:${count > 0 ? `0 -3px 10px rgba(99,140,255,${op*0.4})` : 'none'};transition:all 0.3s`}
+                      title={`${h}:00 — ${count} event${count === 1 ? '' : 's'}`}
+                    ></div>
+                    <span style="font-size:0.56rem;font-family:var(--font-mono);color:var(--text-3)">{h===0?'12A':h<12?`${h}A`:h===12?'12P':`${h-12}P`}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:14px;justify-content:flex-end">
+              <span style="font-size:0.68rem;color:var(--text-2)">Activity Density:</span>
+              <span style="font-size:0.66rem;color:var(--text-2)">Low</span>
+              {[0.15,0.35,0.55,0.75,0.95].map(o=><div style={`background:rgba(99,140,255,${o});width:16px;height:8px;border-radius:2px`}></div>)}
+              <span style="font-size:0.66rem;color:var(--text-2)">Peak ({act?.peakHourLabel ?? 'None'})</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Recent Cases ───────────────────────────────────── -->
+        <div class="card reveal" style="animation-delay:540ms">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Active Investigations Registry</div>
+              <div class="card-sub">Select any record to inspect complete multi-source intelligence report</div>
+            </div>
+            <a href="/history" style="font-size:0.75rem;font-weight:600;color:var(--cyan);text-decoration:none">View Full Registry →</a>
+          </div>
+          <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; padding: 0 16px 8px; font-size: 0.6rem; font-family: var(--font-mono); color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase;">
+              <span style="flex:1">Case ID / Suspect</span>
+              <span style="flex:1">Sources</span>
+              <span style="flex:1">Risk & Status</span>
+              <span style="width: 100px; text-align: right;">Action</span>
+            </div>
+            {recent.length === 0 && (
+              <div style="padding: 30px; text-align: center; color: var(--text-3); font-size: 0.78rem;">
+                No investigations yet — <a href="/new-investigation" style="color:var(--cyan);text-decoration:none;font-weight:600">run your first 6-way correlation →</a>
+              </div>
+            )}
+            {recent.map(c => (
+              <div 
+                onclick={`window.location='/results?case=${encodeURIComponent(c.id)}'`}
+                style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-1); border-radius: 12px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 16px rgba(0,0,0,0.1);"
+                onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--border-2)';" 
+                onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--border-1)';">
+                
+                <div style="flex:1; display: flex; flex-direction: column; gap: 4px;">
+                  <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--cyan); text-shadow: 0 0 8px var(--cyan-glow);">{c.id}</div>
+                  <div style="font-weight: 600; color: var(--text-1); text-transform: capitalize;">{c.suspect} <span style="font-size:0.65rem; color:var(--text-3); margin-left: 6px; text-transform: none;">({c.date})</span></div>
+                </div>
+
+                <div style="flex:1; display: flex; flex-wrap: wrap; gap: 4px;">
+                  {c.sources.map(s => <span class={`badge b-${s.toLowerCase()}`} style="box-shadow: 0 0 10px rgba(0,0,0,0.2);">{s}</span>)}
+                </div>
+
+                <div style="flex:1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 24px;">
+                  <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                    <span class={`badge b-${c.risk.toLowerCase()}`}>{c.risk}</span>
+                    <span class={`badge b-${c.status.toLowerCase()}`}>{c.status}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style={`font-family:var(--font-mono); font-size: 0.85rem; font-weight: 700; color: ${c.score>=80?'#FC8181':c.score>=50?'#F6E05E':'#68D391'};`}>{c.score}</span>
+                    <div class="risk-track" style="width: 50px;">
+                      <div class="risk-fill" style={`width:${c.score}%; background:${c.score>=80?'#FC8181':c.score>=50?'#F6E05E':'#68D391'};`}></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="width: 100px; text-align: right;" onclick="event.stopPropagation()">
+                  <a href={`/results?case=${encodeURIComponent(c.id)}`} class="cta-btn" style="font-size:0.73rem;padding:6px 13px" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+                    Dossier →
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<style is:inline>
+  .reveal {
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+

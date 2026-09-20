@@ -1,0 +1,77 @@
+---
+import '../styles/global.css';
+import AICopilot from '../components/AI/AICopilot.astro';
+interface Props {
+  title?: string;
+  description?: string;
+}
+const {
+  title = 'IntelTrace — Digital Forensics Intelligence',
+  description = 'Unified investigative analytics platform for law enforcement. 6-way CDR, IPDR, Bank, Social, and Blockchain correlation.'
+} = Astro.props;
+
+const isLogin = Astro.url.pathname === '/login' || Astro.url.pathname === '/login/';
+---
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+      script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://server.arcgisonline.com;
+      connect-src 'self' https://firestore.googleapis.com https://generativelanguage.googleapis.com https://oauth2.googleapis.com https://api.etherscan.io;
+      frame-src 'none';
+      object-src 'none';
+      base-uri 'self';" />
+  <title>{title}</title>
+  <!-- Favicon: inline SVG -->
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  
+  <!-- Premium Fonts: Plus Jakarta Sans (Headings & UI) + JetBrains Mono (Data & Numerals) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Leaflet Map CSS & JS (Free, robust, interactive dark map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" is:inline></script>
+
+  <!-- GSAP Core & ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" is:inline defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" is:inline defer></script>
+</head>
+<body>
+  <div id="grain" aria-hidden="true"></div>
+  <slot />
+  {!isLogin && <AICopilot />}
+
+  <!-- Invisible-content failsafe: entrance animations hide `.reveal` at opacity:0 and
+       rely on GSAP to fade them in. If the GSAP CDN is blocked (or the load event is
+       delayed), this guarantees the content is still shown instead of staying blank. -->
+  <script is:inline>
+    (function () {
+      function revealAll() {
+        document.querySelectorAll('.reveal').forEach(function (el) {
+          if (parseFloat(getComputedStyle(el).opacity) < 0.05) {
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+          }
+        });
+      }
+      // If GSAP never loaded, reveal shortly after the DOM is parsed.
+      window.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () { if (typeof gsap === 'undefined') revealAll(); }, 1200);
+      });
+      // Absolute backstop regardless of GSAP/load-event state.
+      setTimeout(revealAll, 4500);
+    })();
+  </script>
+</body>
+</html>
+

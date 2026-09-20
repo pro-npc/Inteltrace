@@ -1,0 +1,806 @@
+---
+// IntelTrace AI Forensic Intelligence Copilot
+---
+
+<button id="copilot-trigger" class="copilot-launcher" type="button" aria-label="Open IntelTrace AI Copilot">
+  <div class="copilot-launcher-inner">
+    <div class="copilot-pulse"></div>
+    <div class="copilot-icon-wrap" style="display:flex;align-items:center;gap:6px;padding:0 16px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+      <span style="font-size:0.85rem;font-weight:600;letter-spacing:-0.01em;">AI Copilot</span>
+    </div>
+  </div>
+</button>
+
+<!-- Copilot Sliding Panel / Modal -->
+<div id="copilot-drawer" class="copilot-drawer hidden">
+  <!-- Header -->
+  <div class="copilot-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="copilot-avatar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.86rem;font-weight:700;color:var(--text-1)">IntelTrace Copilot</span>
+          <span style="font-size:0.56rem;font-family:var(--font-mono);background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(0,212,255,0.3);border-radius:3px;padding:1px 4px">AI v2.4</span>
+        </div>
+        <div style="font-size:0.62rem;color:var(--text-3);display:flex;align-items:center;gap:5px;margin-top:1px">
+          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#00E676;box-shadow:0 0 6px #00E676"></span>
+          <span>Active Case: <strong id="copilot-active-case">Forensics Workspace</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;align-items:center;gap:6px">
+      <button id="copilot-clear-btn" class="copilot-btn-icon" title="Clear conversation">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+      <button id="copilot-close-btn" class="copilot-btn-icon" title="Close Copilot">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Prompts Bar -->
+  <div class="copilot-quick-prompts">
+    <button class="quick-chip" data-prompt="Explain the complete incident and findings in 3 sentences">
+      ⚡ Summary
+    </button>
+    <button class="quick-chip" data-prompt="What are the most critical anomalies detected across the evidence?">
+      ⚡ Critical Anomalies
+    </button>
+    <button class="quick-chip" data-prompt="Trace all financial transactions and liquidation trails step by step">
+      💰 Money Trail
+    </button>
+    <button class="quick-chip" data-prompt="Analyze the communication network and frequent contacts">
+      📞 Phone & Contacts
+    </button>
+    <button class="quick-chip" data-prompt="Summarize all location pings and cellular tower movements">
+      🗺️ Location Telemetry
+    </button>
+    <button class="quick-chip" data-prompt="Draft formal legal charges under IT Act and PMLA">
+      ⚖️ Draft Charges
+    </button>
+  </div>
+
+  <!-- Messages Scroll Area -->
+  <div id="copilot-messages" class="copilot-messages">
+    <!-- Welcome Bot Message -->
+    <div class="copilot-msg bot">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div style="font-weight:600;color:var(--cyan);font-size:0.75rem;margin-bottom:3px">IntelTrace Forensic AI Assistant</div>
+        <p id="copilot-welcome-p1" style="font-size:0.74rem;color:var(--text-2);line-height:1.55">
+          Greetings Inspector. The IntelTrace Multi-Vector Forensic Assistant is ready. I can correlate cross-source evidence, trace financial trails, refute suspect alibis, analyze cell towers, or draft court-ready charge sheets.
+        </p>
+        <p style="font-size:0.72rem;color:var(--text-3);margin-top:6px">
+          Ask a specific investigative question, query financial amounts, cross-reference IMEI logs, or command the tactical map.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="copilot-input-area">
+    <div class="copilot-input-wrap">
+      <input
+        type="text"
+        id="copilot-input"
+        placeholder="Ask about suspect, money trail, alibi, or command map..."
+      />
+      <button id="copilot-send-btn" class="copilot-send-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 4px 0;font-size:0.58rem;color:var(--text-3);font-family:var(--font-mono)">
+      <span>Citing: Indian Evidence Act §65B · PMLA 2002</span>
+      <span>Press Enter ↵</span>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Floating Launcher */
+.copilot-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  text-align: left;
+}
+
+.copilot-launcher * {
+  pointer-events: none;
+}
+
+.copilot-launcher-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-focus);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 16px rgba(59, 130, 246, 0.25);
+  backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.copilot-launcher-inner:hover {
+  transform: scale(1.05) translateY(-2px);
+  border-color: var(--cyan);
+  background: var(--bg-2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 24px rgba(59, 130, 246, 0.4);
+}
+
+.copilot-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 24px;
+  background: rgba(59, 130, 246, 0.15);
+  animation: radarPing 2.5s infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.copilot-icon-wrap {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyan);
+}
+
+/* Copilot Sliding Modal / Drawer */
+.copilot-drawer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 440px;
+  height: 600px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  background: rgba(7, 16, 30, 0.96);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 212, 255, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.copilot-drawer.hidden {
+  display: none !important;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header */
+.copilot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-1);
+  background: rgba(4, 9, 20, 0.85);
+}
+
+.copilot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copilot-btn-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-1);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.copilot-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-1);
+}
+
+/* Quick Prompts Bar */
+.copilot-quick-prompts {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border-1);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.quick-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  padding: 4px 9px;
+  font-size: 0.64rem;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.quick-chip:hover {
+  background: var(--cyan-dim);
+  border-color: rgba(0, 212, 255, 0.3);
+  color: var(--cyan);
+}
+
+/* Message Feed */
+.copilot-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.copilot-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.copilot-msg.user {
+  flex-direction: row-reverse;
+}
+
+.msg-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.copilot-msg.user .msg-avatar {
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.msg-content {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--text-1);
+  max-width: 85%;
+}
+
+.copilot-msg.user .msg-content {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.25);
+  color: var(--text-1);
+}
+
+/* Action button inside AI response */
+.msg-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--cyan);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.msg-action-btn:hover {
+  background: rgba(0, 212, 255, 0.22);
+  border-color: var(--cyan);
+}
+
+/* Input Area */
+.copilot-input-area {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border-1);
+  background: rgba(4, 9, 20, 0.9);
+}
+
+.copilot-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  padding: 4px 6px 4px 12px;
+  transition: border-color 0.2s;
+}
+
+.copilot-input-wrap:focus-within {
+  border-color: rgba(0, 212, 255, 0.45);
+  background: rgba(0, 212, 255, 0.03);
+}
+
+#copilot-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+#copilot-input::placeholder {
+  color: var(--text-3);
+  font-size: 0.72rem;
+}
+
+.copilot-send-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.copilot-send-btn:hover {
+  background: rgba(0, 212, 255, 0.25);
+  border-color: var(--cyan);
+}
+
+/* Typing cursor */
+.typing-dots span {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: typing 1.4s infinite;
+  margin: 0 1px;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+</style>
+
+<script is:inline>
+let copilotOpen = false;
+
+function openCopilot() {
+  const drawer = document.getElementById('copilot-drawer');
+  const trigger = document.getElementById('copilot-trigger');
+  if (!drawer) return;
+
+  copilotOpen = true;
+  drawer.classList.remove('hidden');
+  if (trigger) {
+    trigger.style.opacity = '0';
+    trigger.style.pointerEvents = 'none';
+  }
+  setTimeout(() => document.getElementById('copilot-input')?.focus(), 100);
+}
+
+function closeCopilot() {
+  const drawer = document.getElementById('copilot-drawer');
+  const trigger = document.getElementById('copilot-trigger');
+  if (!drawer) return;
+
+  copilotOpen = false;
+  drawer.classList.add('hidden');
+  if (trigger) {
+    trigger.style.opacity = '1';
+    trigger.style.pointerEvents = 'auto';
+  }
+}
+
+function toggleCopilot() {
+  const drawer = document.getElementById('copilot-drawer');
+  if (!drawer) return;
+  if (drawer.classList.contains('hidden')) {
+    openCopilot();
+  } else {
+    closeCopilot();
+  }
+}
+
+// Global Keyboard Shortcut: Cmd+K / Ctrl+K
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    toggleCopilot();
+  }
+});
+
+function handleCopilotKey(e) {
+  if (e.key === 'Enter') {
+    submitCopilotQuery();
+  }
+}
+
+function sendQuickPrompt(text) {
+  const input = document.getElementById('copilot-input');
+  if (input) {
+    input.value = text;
+    submitCopilotQuery();
+  }
+}
+
+function clearCopilotChat() {
+  const msgs = document.getElementById('copilot-messages');
+  if (!msgs) return;
+  const cid = currentCaseId();
+  msgs.innerHTML = `
+    <div class="copilot-msg bot">
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-content">
+        <div style="font-weight:600;color:var(--cyan);font-size:0.75rem;margin-bottom:3px">IntelTrace Forensic AI Assistant</div>
+        <p style="font-size:0.74rem;color:var(--text-2);line-height:1.55">
+          Conversation history cleared. Ready for your next forensic intelligence query${cid ? ` on <strong>Case ${cid}</strong>` : ''}.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function appendUserMessage(text) {
+  const msgs = document.getElementById('copilot-messages');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = 'copilot-msg user';
+  div.innerHTML = `
+    <div class="msg-avatar">👮</div>
+    <div class="msg-content">${escapeHtml(text)}</div>
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendBotMessage(html) {
+  const msgs = document.getElementById('copilot-messages');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = 'copilot-msg bot';
+  div.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-content">${html}</div>
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Multi-turn conversation state sent to /api/copilot for grounded follow-ups.
+let copilotHistory = [];
+let copilotBusy = false;
+
+// The case the copilot is grounded on.
+function currentCaseId() {
+  try {
+    const q = new URLSearchParams(window.location.search).get('case');
+    if (q) return q;
+  } catch (_) {}
+  if (typeof ISLAND !== 'undefined' && ISLAND && ISLAND.copyMarkdown) {
+    const m = ISLAND.copyMarkdown.match(/Forensic Case ([A-Za-z0-9_-]+)/);
+    if (m) return m[1];
+  }
+  return '';
+}
+
+function syncCopilotContext() {
+  const activeCaseEl = document.getElementById('copilot-active-case');
+  const welcomeP1 = document.getElementById('copilot-welcome-p1');
+  const cid = currentCaseId();
+
+  if (window.location.pathname.includes('/results')) {
+    const suspectH1 = document.querySelector('h1')?.textContent?.trim();
+    const caseTag = cid || 'ACTIVE CASE';
+    if (activeCaseEl) activeCaseEl.textContent = suspectH1 ? `${caseTag} (${suspectH1})` : caseTag;
+    if (welcomeP1) {
+      welcomeP1.innerHTML = `Greetings Inspector. Active investigation <strong>${caseTag}${suspectH1 ? ` · ${suspectH1}` : ''}</strong> is indexed. I am ready to correlate evidence vectors, analyze money flows, trace cell towers, or draft legal charges.`;
+    }
+  } else if (cid) {
+    if (activeCaseEl) activeCaseEl.textContent = `Case ${cid}`;
+    if (welcomeP1) {
+      welcomeP1.innerHTML = `Greetings Inspector. Active investigation <strong>${cid}</strong> is indexed. Ask any question regarding timeline, financials, or legal charges.`;
+    }
+  } else {
+    if (activeCaseEl) activeCaseEl.textContent = 'Forensic Workspace';
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', syncCopilotContext);
+} else {
+  syncCopilotContext();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Markdown to safe HTML for streaming UI.
+function renderMarkdown(md) {
+  const safe = escapeHtml(md || '');
+  return safe
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+?)`/g, '<code>$1</code>')
+    .replace(/\n{2,}/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')
+    .replace(/\[ACTION:\s*switchTab,\s*tab:\s*([a-zA-Z0-9_-]+),\s*label:\s*([^\]]+)\]/g, '<div><button class="msg-action-btn" onclick="switchTab(\'$1\')">$2</button></div>')
+    .replace(/\[ACTION:\s*switchTabAndFly,\s*lat:\s*([0-9.-]+),\s*lng:\s*([0-9.-]+),\s*label:\s*([^\]]+)\]/g, '<div><button class="msg-action-btn" onclick="switchTabAndFly(\'location\', $1, $2)">$3</button></div>');
+}
+
+async function submitCopilotQuery() {
+  const input = document.getElementById('copilot-input');
+  if (!input || copilotBusy) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  copilotBusy = true;
+  appendUserMessage(text);
+  input.value = '';
+
+  const msgs = document.getElementById('copilot-messages');
+  
+  const botDiv = document.createElement('div');
+  botDiv.className = 'copilot-msg bot';
+  botDiv.innerHTML = '<div class="msg-avatar">🤖</div><div class="msg-content"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+  msgs?.appendChild(botDiv);
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+
+  const contentDiv = botDiv.querySelector('.msg-content');
+
+  try {
+    const res = await fetch('/api/copilot', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: text,
+        caseId: currentCaseId(),
+        history: copilotHistory.slice(-8),
+      }),
+    });
+
+    if (!res.ok) {
+      if (contentDiv) contentDiv.innerHTML = 'The forensic copilot could not be reached. Please try again.';
+      copilotBusy = false;
+      return;
+    }
+
+    // SSE Reader
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulatedText = '';
+    let persistedActionHTML = '';
+    
+    // Clear typing dots on first chunk
+    if (contentDiv) contentDiv.innerHTML = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6).trim();
+          if (!dataStr || dataStr === '[DONE]') continue;
+          try {
+            const payload = JSON.parse(dataStr);
+            // Handling Gemini, OpenAI/OmniRoute, or fallback {text, action}
+            let chunkText = '';
+            if (payload.candidates) {
+              chunkText = payload.candidates[0]?.content?.parts?.[0]?.text || '';
+            } else if (payload.choices) {
+              chunkText = payload.choices[0]?.delta?.content || payload.choices[0]?.text || '';
+            } else if (payload.text) {
+              chunkText = payload.text;
+            }
+            if (payload.action) {
+              persistedActionHTML = `<div style="margin-top:8px"><button class="msg-action-btn" onclick="${escapeHtml(payload.action.fn)}">${escapeHtml(payload.action.label)}</button></div>`;
+            }
+            accumulatedText += chunkText;
+
+            // Clean up incomplete ACTION blocks from the display during streaming
+            const displayHTML = renderMarkdown(accumulatedText).replace(/\[ACTION[^\]]*$/, '') + persistedActionHTML;
+            if (contentDiv) contentDiv.innerHTML = displayHTML;
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+          } catch(e) {}
+        }
+      }
+    }
+
+    if (!persistedActionHTML) {
+      const actionMatch = accumulatedText.match(/\[ACTION:\s*([a-zA-Z]+)(?:,\s*tab:\s*([a-zA-Z0-9_-]+))?(?:,\s*lat:\s*([-\d.]+),\s*lng:\s*([-\d.]+))?(?:,\s*label:\s*([^\]]+))?\]/);
+      if (actionMatch) {
+        const actionType = actionMatch[1];
+        const tab = actionMatch[2];
+        const lat = actionMatch[3];
+        const lng = actionMatch[4];
+        const label = actionMatch[5] || (actionType === 'switchTabAndFly' ? '🗺️ Fly to Incident Location' : '★ Open Forensic View');
+
+        if (actionType === 'switchTab' && tab) {
+          persistedActionHTML = `<div style="margin-top:8px"><button class="msg-action-btn" onclick="switchTab('${escapeHtml(tab)}')">${escapeHtml(label)}</button></div>`;
+        } else if (actionType === 'switchTabAndFly' && lat && lng) {
+          persistedActionHTML = `<div style="margin-top:8px"><button class="msg-action-btn" onclick="switchTabAndFly('location', ${Number(lat)}, ${Number(lng)})">${escapeHtml(label)}</button></div>`;
+        }
+      }
+    }
+
+    const cleanText = accumulatedText.replace(/\[ACTION[^\]]*\]/g, '').trim();
+    if (contentDiv) {
+      const finalHtml = renderMarkdown(cleanText) + persistedActionHTML;
+      contentDiv.innerHTML = finalHtml || 'Forensic intelligence analysis completed.';
+    }
+
+    copilotHistory.push({ role: 'user', text });
+    copilotHistory.push({ role: 'model', text: cleanText });
+    if (copilotHistory.length > 16) copilotHistory = copilotHistory.slice(-16);
+    
+  } catch (err) {
+    if (contentDiv) contentDiv.innerHTML = 'The forensic copilot is unavailable right now. Please try again in a moment.';
+  }
+
+  copilotBusy = false;
+}
+
+// Global Tab & Map Switcher helper for AI Agent
+window.switchTab = function(tabId) {
+  const btn = document.getElementById('tab-btn-' + tabId);
+  if (btn) btn.click();
+};
+
+window.switchTabAndFly = function(tabId, lat, lng) {
+  window.switchTab(tabId);
+  setTimeout(() => {
+    if (typeof flyToPin === 'function') {
+      flyToPin(lat, lng, 'Target Incident');
+    }
+  }, 400);
+};
+
+// Explicit global exports
+window.toggleCopilot = toggleCopilot;
+window.openCopilot = openCopilot;
+window.closeCopilot = closeCopilot;
+window.submitCopilotQuery = submitCopilotQuery;
+window.sendQuickPrompt = sendQuickPrompt;
+window.clearCopilotChat = clearCopilotChat;
+window.handleCopilotKey = handleCopilotKey;
+
+// Direct DOM event listener bindings (deduplicated via dataset.bound)
+function bindAllCopilotListeners() {
+  // Trigger button
+  const trigger = document.getElementById('copilot-trigger');
+  if (trigger && !trigger.dataset.bound) {
+    trigger.dataset.bound = 'true';
+    trigger.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleCopilot();
+    });
+  }
+
+  // Close button
+  const closeBtn = document.getElementById('copilot-close-btn');
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.dataset.bound = 'true';
+    closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      closeCopilot();
+    });
+  }
+
+  // Clear button
+  const clearBtn = document.getElementById('copilot-clear-btn');
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.dataset.bound = 'true';
+    clearBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      clearCopilotChat();
+    });
+  }
+
+  // Send button
+  const sendBtn = document.getElementById('copilot-send-btn');
+  if (sendBtn && !sendBtn.dataset.bound) {
+    sendBtn.dataset.bound = 'true';
+    sendBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      submitCopilotQuery();
+    });
+  }
+
+  // Input keydown
+  const input = document.getElementById('copilot-input');
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = 'true';
+    input.addEventListener('keydown', function(e) {
+      handleCopilotKey(e);
+    });
+  }
+
+  // Quick prompt chips
+  document.querySelectorAll('.quick-chip[data-prompt]').forEach(function(chip) {
+    if (!chip.dataset.bound) {
+      chip.dataset.bound = 'true';
+      chip.addEventListener('click', function(e) {
+        e.preventDefault();
+        var prompt = chip.getAttribute('data-prompt');
+        if (prompt) sendQuickPrompt(prompt);
+      });
+    }
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindAllCopilotListeners);
+} else {
+  bindAllCopilotListeners();
+}
+</script>

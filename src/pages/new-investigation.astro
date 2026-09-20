@@ -1,0 +1,449 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Shell/Sidebar.astro';
+import Topbar from '../components/Shell/Topbar.astro';
+import { processingSteps } from '../data/mockInvestigation';
+---
+<Layout title="IntelTrace — New Investigation">
+  <div class="shell">
+    <Sidebar activePage="investigation" />
+    <main class="main">
+      <Topbar title="New Investigation" subtitle="Upload data sources and initiate 6-way correlation analysis" breadcrumb={[{label:'New Investigation'}]}/>
+      <div class="page-body">
+
+        <!-- Step Indicator -->
+        <div style="display:flex;align-items:center;gap:12px" class="reveal">
+          {[{n:'01',l:'Upload Sources'},{n:'02',l:'Processing'},{n:'03',l:'Results Ready'}].map((s,i)=>(
+            <>
+              <div id={`step-${i+1}`} style={`display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:500;color:${i===0?'var(--blue-lt)':'var(--text-2)'}`}>
+                <div style={`width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-family:var(--font-mono);font-weight:700;border:1px solid;${i===0?'background:var(--blue-dim);border-color:rgba(99,140,255,0.35);color:var(--blue-lt)':'background:rgba(255,255,255,0.04);border-color:var(--border-1);color:var(--text-3)'}`}>{s.n}</div>
+                {s.l}
+              </div>
+              {i < 2 && <div style="flex:1;max-width:60px;height:1px;background:var(--border-2)"></div>}
+            </>
+          ))}
+        </div>
+
+        <!-- Step 1: Upload -->
+        <div id="step-1-content">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <!-- Suspect Info -->
+            <div class="card card-p reveal">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                <div>
+                  <div style="font-size:0.92rem;font-weight:700;color:var(--text-1);letter-spacing:-0.015em">Suspect Information</div>
+                  <div style="font-size:0.72rem;color:var(--text-2);margin-top:3px">Case metadata & subject identifiers</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px">
+                  <button type="button" onclick="prefillSampleSuspect()" class="btn-ghost" style="font-size:0.7rem;padding:4px 10px">Fill Sample</button>
+                  <button type="button" onclick="clearSuspectFields()" class="btn-ghost" style="font-size:0.7rem;padding:4px 10px" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-2)'">Clear</button>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                {[
+                  { id: 'in-name',    label: 'Suspect Full Name',     placeholder: 'e.g. Arjun Verma',             max: 60, mode: 'text' },
+                  { id: 'in-fir',     label: 'FIR Reference',         placeholder: 'e.g. FIR #402/2024',           max: 40, mode: 'text' },
+                  { id: 'in-officer', label: 'Assigned Officer',      placeholder: 'e.g. Inspector S. Mehta',       max: 60, mode: 'text' },
+                  { id: 'in-phone',   label: 'Phone Number',          placeholder: 'e.g. +91 98204 12345',         max: 20, mode: 'tel' },
+                  { id: 'in-bank',    label: 'Bank Account',          placeholder: 'e.g. HDFC-0004821',            max: 34, mode: 'text' },
+                  { id: 'in-period',  label: 'Investigation Period',  placeholder: 'e.g. 2024-03-01 to 2024-03-20',max: 35, mode: 'text' },
+                ].map(f => (
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label for={f.id} style="font-size:0.74rem;color:var(--text-1);font-weight:500">{f.label}</label>
+                      <span id={`cnt-${f.id}`} style="font-size:0.6rem;font-family:var(--font-mono);color:var(--text-3)">0/{f.max}</span>
+                    </div>
+                    <input
+                      id={f.id}
+                      type={f.mode === 'tel' ? 'tel' : 'text'}
+                      inputmode={f.mode as 'text' | 'tel' | 'numeric'}
+                      maxlength={f.max}
+                      placeholder={f.placeholder}
+                      oninput={`handleInputLimit('${f.id}', ${f.max})`}
+                      class="inp"
+                      onfocus="this.style.borderColor='rgba(99,140,255,0.5)';this.style.background='rgba(99,140,255,0.06)';this.style.boxShadow='0 0 0 3px rgba(99,140,255,0.1)'"
+                      onblur="this.style.borderColor='';this.style.background='';this.style.boxShadow=''"
+                    />
+                    <div id={`err-${f.id}`} style="display:none;font-size:0.64rem;color:var(--danger);font-family:var(--font-mono)"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <!-- Upload Cards Grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+              {[
+                {id:'cdr',  label:'CDR Data',      sub:'Call Detail Records',   color:'#A3BFFA', icon:'📞', sample:'cdr_arjun_verma_202403.csv'},
+                {id:'ipdr', label:'IPDR Data',     sub:'Internet Sessions',     color:'#BEA6FF', icon:'🌐', sample:'ipdr_arjun_verma_202403.csv'},
+                {id:'bank', label:'Bank Statement', sub:'Transactions',          color:'#81E6D9', icon:'💳', sample:'bank_hdfc_4821_202403.csv'},
+                {id:'social',label:'Social Media', sub:'Posts & Locations',     color:'#E9D8FD', icon:'💬', sample:'social_arjun_verma_202403.csv'},
+              ].map(s=>(
+                <div id={`card-${s.id}`} onclick={`document.getElementById('file-${s.id}').click()`}
+                  data-color={s.color}
+                  style={`background:var(--bg-card);border:1px solid var(--border-1);border-radius:12px;padding:16px 14px;cursor:pointer;transition:border-color 0.22s,box-shadow 0.22s,transform 0.22s,background 0.22s;display:flex;flex-direction:column;gap:7px;align-items:center;text-align:center;position:relative`}
+                  onmouseover={`if(!this.dataset.loaded){var c=this.dataset.color;this.style.borderColor=c+'99';this.style.transform='translateY(-3px) scale(1.015)';this.style.boxShadow='0 0 0 1px '+c+'40, 0 8px 32px '+c+'22, 0 2px 8px rgba(0,0,0,0.35)';this.style.background=c+'08'}`}
+                  onmouseout={`if(!this.dataset.loaded){this.style.borderColor='var(--border-1)';this.style.transform='';this.style.boxShadow='';this.style.background='var(--bg-card)'}`}>
+                  <input id={`file-${s.id}`} type="file" accept=".csv,text/csv,text/plain" style="display:none" onchange={`pickFile('${s.id}', this.files && this.files[0])`}/>
+                  <div style={`width:38px;height:38px;border-radius:10px;background:${s.color}16;border:1px solid ${s.color}30;display:flex;align-items:center;justify-content:center;font-size:1.05rem`}>{s.icon}</div>
+                  <div style="font-size:0.84rem;font-weight:600;color:var(--text-1)">{s.label}</div>
+                  <div style="font-size:0.71rem;color:var(--text-2)">{s.sub}</div>
+                  <div id={`cnt-${s.id}`} style="font-size:0.65rem;font-family:var(--font-mono);color:var(--text-2)">Drop CSV or click to browse (max 8MB)</div>
+                  <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                    <button type="button" data-sample={s.sample} onclick={`event.stopPropagation();loadSample('${s.id}')`}
+                      class="btn-ghost" style={`font-size:0.65rem;padding:3px 9px;color:${s.color};border-color:${s.color}30`}
+                      onmouseover={`this.style.background='${s.color}14';this.style.borderColor='${s.color}50'`} onmouseout={`this.style.background='';this.style.borderColor='${s.color}30'`}>Load sample</button>
+                    <button type="button" id={`clr-${s.id}`} onclick={`event.stopPropagation();clearSingleFile('${s.id}')`}
+                      class="btn-ghost" style="display:none;font-size:0.65rem;padding:3px 9px"
+                      onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-2)'">Remove</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- Wallet + Banner -->
+          <div class="card card-p reveal" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:11px">
+                <span style="font-size:1.1rem">⛓</span>
+                <div>
+                  <div style="font-size:0.88rem;font-weight:600;color:var(--text-1);letter-spacing:-0.01em">Blockchain Wallet Address</div>
+                  <div style="font-size:0.71rem;color:var(--text-2);margin-top:2px">Ethereum / Bitcoin on-chain trace (max 66 characters)</div>
+                </div>
+              </div>
+              <span id="wallet-len" style="font-size:0.64rem;font-family:var(--font-mono);color:var(--text-3)">0/66</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input id="wallet-in" type="text" maxlength="66" placeholder="0x... (EVM) or 1... / 3... / bc1... (Bitcoin)"
+                oninput="handleWalletInput(this)"
+                class="inp" style="font-family:var(--font-mono);font-size:0.78rem"
+                onfocus="this.style.borderColor='rgba(99,140,255,0.5)';this.style.background='rgba(99,140,255,0.06)';this.style.boxShadow='0 0 0 3px rgba(99,140,255,0.1)'"
+                onblur="this.style.borderColor='';this.style.background='';this.style.boxShadow=''"/>
+              <button onclick="loadWallet()" type="button" class="cta-btn" style="white-space:nowrap;font-size:0.78rem;padding:9px 16px;background:rgba(236,201,75,0.12);color:#F6E05E;border-color:rgba(236,201,75,0.25);box-shadow:none" onmouseover="this.style.background='rgba(236,201,75,0.2)'" onmouseout="this.style.background='rgba(236,201,75,0.12)'">Load Sample</button>
+            </div>
+            <div id="wallet-status" style="display:none;align-items:center;gap:7px;font-size:0.73rem;margin-top:9px"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div id="submit-meta" style="font-size:0.76rem;color:var(--text-2)">Load at least 1 data source to begin</div>
+            <button id="analyze-btn" onclick="startAnalysis()" disabled
+              class="cta-btn" style="font-size:0.84rem;padding:10px 22px;opacity:0.4;cursor:not-allowed;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Run 6-Way Correlation Analysis
+              <span style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem">→</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Processing -->
+        <div id="step-2-content" style="display:none">
+          <div style="display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:start">
+            <!-- Ring -->
+            <div style="display:flex;justify-content:center;padding-top:10px;position:sticky;top:80px">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="7"/>
+                <circle id="prog-ring" cx="90" cy="90" r="76" fill="none" stroke="#00D4FF" stroke-width="7"
+                  stroke-dasharray="478" stroke-dashoffset="478" stroke-linecap="round"
+                  transform="rotate(-90 90 90)" style="transition:stroke-dashoffset 0.5s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 8px rgba(0,212,255,0.4))"/>
+                <text x="90" y="85" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="28" font-weight="700" fill="white" letter-spacing="-0.03em" id="prog-pct">0%</text>
+                <text x="90" y="104" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" font-weight="600" fill="#526680" letter-spacing="0.1em">CORRELATING</text>
+              </svg>
+            </div>
+            <!-- Steps -->
+            <div style="display:flex;flex-direction:column;gap:7px" id="proc-list">
+              {processingSteps.map(s=>(
+                <div class="proc-step pending" id={`ps-${s.step}`}>
+                  <div id={`pi-${s.step}`} style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.04);border:1px solid var(--border-1);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.3s">
+                    <span style="font-size:0.62rem;font-family:var(--font-mono);color:var(--text-3)">{String(s.step).padStart(2,'0')}</span>
+                  </div>
+                  <div>
+                    <div style="font-size:0.84rem;font-weight:600;color:var(--text-1)">{s.icon} {s.label}</div>
+                    <div style="font-size:0.71rem;color:var(--text-2);margin-top:2px">{s.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script is:inline>
+// Selected File objects per source (real uploads or fetched samples).
+var files = {cdr:null,ipdr:null,bank:null,social:null};
+var analysisResult = null;   // { caseId, score, risk } once /api/analyze resolves
+var analysisError = null;    // human-readable message if it fails
+var MAX_CLIENT_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+
+function estimateRows(text){
+  var lines = text.split(/\r?\n/).filter(function(l){return l.trim().length>0;});
+  return Math.max(0, lines.length - 1);
+}
+
+function handleInputLimit(id, max) {
+  var el = document.getElementById(id);
+  var badge = document.getElementById('cnt-' + id);
+  var err = document.getElementById('err-' + id);
+  if (!el) return;
+  var len = el.value.length;
+  if (badge) badge.textContent = len + '/' + max;
+
+  if (id === 'in-phone' && el.value) {
+    // Phone validation: digits, spaces, plus, dashes, parentheses only
+    var valid = /^[+0-9\s\-()]{0,20}$/.test(el.value);
+    if (!valid && err) {
+      err.style.display = 'block';
+      err.textContent = 'Only numbers, +, -, () allowed';
+      el.style.borderColor = '#FF4757';
+    } else {
+      if (err) err.style.display = 'none';
+      el.style.borderColor = len >= max ? 'rgba(255,179,0,0.6)' : 'rgba(0,212,255,0.4)';
+    }
+  } else {
+    if (err) err.style.display = 'none';
+    el.style.borderColor = len >= max ? 'rgba(255,179,0,0.6)' : 'rgba(0,212,255,0.4)';
+  }
+}
+
+function prefillSampleSuspect() {
+  var samples = {
+    'in-name': 'Arjun Verma',
+    'in-fir': 'FIR #402/2024',
+    'in-officer': 'Inspector S. Mehta',
+    'in-phone': '+91 98204 11029',
+    'in-bank': 'HDFC-009182-4821',
+    'in-period': '2024-03-01 to 2024-03-20'
+  };
+  var limits = { 'in-name': 60, 'in-fir': 40, 'in-officer': 60, 'in-phone': 20, 'in-bank': 34, 'in-period': 35 };
+  for (var k in samples) {
+    var el = document.getElementById(k);
+    if (el) {
+      el.value = samples[k];
+      handleInputLimit(k, limits[k] || 60);
+    }
+  }
+}
+
+function clearSuspectFields() {
+  var ids = ['in-name', 'in-fir', 'in-officer', 'in-phone', 'in-bank', 'in-period'];
+  var limits = { 'in-name': 60, 'in-fir': 40, 'in-officer': 60, 'in-phone': 20, 'in-bank': 34, 'in-period': 35 };
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.value = '';
+      handleInputLimit(id, limits[id] || 60);
+    }
+  });
+}
+
+function handleWalletInput(el) {
+  var lenBadge = document.getElementById('wallet-len');
+  var status = document.getElementById('wallet-status');
+  if (lenBadge) lenBadge.textContent = el.value.length + '/66';
+
+  var v = el.value.trim();
+  if (!status) return;
+
+  if (!v) {
+    status.style.display = 'none';
+    status.innerHTML = '';
+    return;
+  }
+
+  // Check EVM (0x followed by 40 hex) or Bitcoin
+  var isEvm = /^0x[a-fA-F0-9]{40}$/.test(v);
+  var isBtc = /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(v);
+
+  status.style.display = 'flex';
+  if (isEvm) {
+    status.style.color = '#34D399';
+    status.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Valid Ethereum/EVM Address (42 chars)';
+    el.style.borderColor = 'rgba(52,211,153,0.4)';
+  } else if (isBtc) {
+    status.style.color = '#34D399';
+    status.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Valid Bitcoin Address';
+    el.style.borderColor = 'rgba(52,211,153,0.4)';
+  } else {
+    status.style.color = '#FFB300';
+    status.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Format note: enter a valid 0x EVM or base58/bech32 BTC address';
+    el.style.borderColor = 'rgba(255,179,0,0.4)';
+  }
+}
+
+function markCard(id, label){
+  var card = document.getElementById('card-'+id);
+  var cnt = document.getElementById('cnt-'+id);
+  var clr = document.getElementById('clr-'+id);
+  if(card){ card.dataset.loaded='1'; card.style.borderColor='rgba(0,230,118,0.25)'; card.style.background='rgba(0,230,118,0.04)'; }
+  if(cnt){ cnt.textContent = label; cnt.style.color='#34D399'; }
+  if(clr){ clr.style.display = 'inline-block'; }
+  updateBtn();
+}
+
+function clearSingleFile(id) {
+  files[id] = null;
+  var card = document.getElementById('card-'+id);
+  var cnt = document.getElementById('cnt-'+id);
+  var clr = document.getElementById('clr-'+id);
+  var inp = document.getElementById('file-'+id);
+  if (inp) inp.value = '';
+  if (card) { delete card.dataset.loaded; card.style.borderColor='var(--border-1)'; card.style.background='var(--bg-card)'; }
+  if (cnt) { cnt.textContent = 'Drop CSV or click to browse (max 8MB)'; cnt.style.color='var(--text-3)'; }
+  if (clr) clr.style.display = 'none';
+  updateBtn();
+}
+
+function setFile(id, file, text){
+  files[id] = file;
+  markCard(id, estimateRows(text).toLocaleString()+' records · '+file.name);
+}
+
+// Real upload chosen via the hidden <input type=file>.
+function pickFile(id, file){
+  if(!file) return;
+  if(file.size > MAX_CLIENT_FILE_SIZE) {
+    var cnt = document.getElementById('cnt-'+id);
+    if(cnt){ cnt.textContent = 'File too large (> 8MB limit)'; cnt.style.color='#FF4757'; }
+    return;
+  }
+  file.text().then(function(text){ setFile(id, file, text); }).catch(function(){
+    var f = new File([file], file.name, {type:'text/csv'}); files[id]=f; markCard(id, file.name+' loaded'); });
+}
+
+// Fetch the bundled fixture CSV and treat it as an uploaded file.
+function loadSample(id){
+  var btn = document.querySelector('#card-'+id+' button[data-sample]');
+  var name = btn ? btn.getAttribute('data-sample') : id+'.csv';
+  fetch('/samples/'+name, {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('missing'); return r.text(); })
+    .then(function(text){ setFile(id, new File([text], name, {type:'text/csv'}), text); })
+    .catch(function(){ var cnt=document.getElementById('cnt-'+id); if(cnt){cnt.textContent='sample unavailable'; cnt.style.color='#F87171';} });
+}
+
+function loadWallet() {
+  var el = document.getElementById('wallet-in');
+  if (el) {
+    el.value='0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+    handleWalletInput(el);
+  }
+  updateBtn();
+}
+
+function updateBtn() {
+  var has = Object.keys(files).some(function(k){return !!files[k];});
+  var btn = document.getElementById('analyze-btn');
+  var meta = document.getElementById('submit-meta');
+  if(btn){ 
+    btn.disabled=!has; 
+    btn.style.opacity=has?'1':'0.4'; 
+    btn.style.cursor=has?'pointer':'not-allowed';
+    btn.style.background=has?'var(--blue)':'rgba(99,140,255,0.1)';
+    btn.style.color='#fff';
+    btn.style.boxShadow=has?'0 4px 16px rgba(99,140,255,0.35)':'none';
+  }
+  if(meta){
+    if(has){
+      var n = Object.keys(files).filter(function(k){return !!files[k];}).length;
+      meta.textContent = n+' source'+(n===1?'':'s')+' ready · SHA-256 evidence hashing on ingest';
+      meta.style.color='var(--text-1)';
+    } else {
+      meta.textContent = 'Load at least 1 data source to begin';
+      meta.style.color='var(--text-2)';
+    }
+  }
+}
+
+function sanitizeVal(id, maxLen) {
+  var el = document.getElementById(id);
+  if (!el) return '';
+  return el.value.replace(/<[^>]*>/g, '').trim().slice(0, maxLen || 60);
+}
+
+function startAnalysis() {
+  if(!Object.keys(files).some(function(k){return !!files[k];})) return;
+
+  // Validate phone format if entered
+  var phoneVal = sanitizeVal('in-phone', 20);
+  if (phoneVal && !/^[+0-9\s\-()]{0,20}$/.test(phoneVal)) {
+    showError('Phone number contains invalid characters. Only numbers, +, -, and spaces allowed.');
+    return;
+  }
+
+  analysisResult = null; analysisError = null;
+  document.getElementById('step-1-content').style.display='none';
+  document.getElementById('step-2-content').style.display='block';
+  var s1 = document.getElementById('step-1'); if(s1){s1.style.color='#34D399';}
+  var s2 = document.getElementById('step-2'); if(s2){s2.style.color='var(--cyan)';}
+
+  // Assemble the multipart payload the Worker expects.
+  var fd = new FormData();
+  ['cdr','ipdr','bank','social'].forEach(function(k){ if(files[k]) fd.append(k, files[k], files[k].name); });
+  fd.append('wallet', sanitizeVal('wallet-in', 66));
+  fd.append('suspectName', sanitizeVal('in-name', 60));
+  fd.append('fir', sanitizeVal('in-fir', 40));
+  fd.append('officer', sanitizeVal('in-officer', 60));
+  fd.append('phone', phoneVal);
+  fd.append('bankAccount', sanitizeVal('in-bank', 34));
+
+  fetch('/api/analyze', {method:'POST', body:fd, credentials:'same-origin'})
+    .then(function(r){
+      if(r.status===401){ window.location.href='/login'; return null; }
+      return r.json().then(function(j){ return {ok:r.ok, status:r.status, body:j}; });
+    })
+    .then(function(res){
+      if(!res) return;
+      if(res.ok && res.body && res.body.caseId){ analysisResult = res.body; }
+      else { analysisError = (res.body && res.body.error) || ('Analysis failed ('+res.status+')'); }
+    })
+    .catch(function(){ analysisError = 'Network error — could not reach the analysis engine.'; });
+
+  animate(1);
+}
+
+function showError(msg){
+  document.getElementById('step-2-content').style.display='none';
+  document.getElementById('step-1-content').style.display='block';
+  var s1=document.getElementById('step-1'); if(s1){s1.style.color='var(--cyan)';}
+  var s2=document.getElementById('step-2'); if(s2){s2.style.color='var(--text-3)';}
+  var meta=document.getElementById('submit-meta'); if(meta){ meta.textContent=msg; meta.style.color='#F87171'; }
+}
+
+function animate(step) {
+  if(analysisError){ showError(analysisError); return; }
+  if(step>10){
+    if(analysisResult){
+      setTimeout(function(){ window.location.href='/results?case='+encodeURIComponent(analysisResult.caseId); }, 400);
+    } else {
+      setTimeout(function(){ animate(11); }, 250);
+    }
+    return;
+  }
+  if(step>1){
+    var prev=document.getElementById('ps-'+(step-1));
+    var pi=document.getElementById('pi-'+(step-1));
+    if(prev){prev.className='proc-step done';}
+    if(pi){pi.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'; pi.style.background='rgba(0,230,118,0.12)'; pi.style.borderColor='rgba(0,230,118,0.3)';}
+  }
+  var cur=document.getElementById('ps-'+step);
+  var ci=document.getElementById('pi-'+step);
+  if(cur) cur.className='proc-step active';
+  if(ci){ ci.innerHTML='<div class="spin" style="width:12px;height:12px;border:2px solid rgba(0,212,255,0.2);border-top-color:#00D4FF;border-radius:50%"></div>'; ci.style.background='rgba(0,212,255,0.1)'; ci.style.borderColor='rgba(0,212,255,0.3)';}
+  var pct=Math.round((step/10)*100);
+  var ring=document.getElementById('prog-ring');
+  var txt=document.getElementById('prog-pct');
+  if(ring) ring.style.strokeDashoffset=String(478-(pct/100)*478);
+  if(txt) txt.textContent=pct+'%';
+  setTimeout(function(){animate(step+1)},780);
+}
+
+window.addEventListener('load', function(){
+  document.querySelectorAll('.reveal').forEach(function(el,i){
+    el.style.opacity='0';el.style.transform='translateY(12px)';
+    setTimeout(function(){el.style.transition='opacity 0.5s cubic-bezier(0.16,1,0.3,1),transform 0.5s cubic-bezier(0.16,1,0.3,1)';el.style.opacity='1';el.style.transform='none';},80+i*60);
+  });
+});
+</script>
+

@@ -1,0 +1,4 @@
+date,time,transaction_type,cr_dr,amount,account_number,sender_name,receiver_name,sender_account,receiver_account,description,bank_name
+2024-03-15,11:10:00,NEFT,CR,219450,HDFC-4821,WazirX_Exchange,Arjun Verma,WZX-9999,HDFC-4821,WAZIRX OTC LIQUIDATION,HDFC Bank
+2024-03-15,11:18:00,IMPS,DR,15000,HDFC-4821,Arjun Verma,Rohan Sharma,HDFC-4821,AXIS-XXXXXXX-3312,KICKBACK TRANSFER,HDFC Bank
+2024-03-16,09:00:00,RTGS,CR,500000,HDFC-4821,Unknown Entity,Arjun Verma,SG-TRX-11,HDFC-4821,INWARD REMITTANCE SINGAPORE,HDFC Bank

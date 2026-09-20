@@ -1,0 +1,5 @@
+account_number,date,time,transaction_type,amount,cr_dr,sender_name,receiver_name,sender_account,receiver_account,description,bank_name
+HDFC-XXXXXXX-4821,2024-03-15,11:10:00,NEFT,219450,CR,WazirX Technologies,Arjun Verma,ICIC-CORP-7821,HDFC-XXXXXXX-4821,NEFT/WazirX Technologies Pvt Ltd,HDFC
+HDFC-XXXXXXX-4821,2024-03-15,11:10:00,IMPS,15000,DR,Arjun Verma,Rohan Sharma,HDFC-XXXXXXX-4821,AXIS-XXXXXXX-3312,IMPS to Rohan Sharma 97543,HDFC
+HDFC-XXXXXXX-4821,2024-03-10,14:30:00,NEFT,85000,DR,Arjun Verma,Vikram Shah Enterprises,HDFC-XXXXXXX-4821,SBI-XXXXXXX-7801,NEFT to Vikram Shah Enterprises,HDFC
+HDFC-XXXXXXX-4821,2024-03-01,09:00:00,RTGS,500000,CR,REMIT CORP LTD,Arjun Verma,SG-REMIT-0001,HDFC-XXXXXXX-4821,RTGS - Unknown Origin - Singapore Acct,HDFC

@@ -1,0 +1,325 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Shell/Sidebar.astro';
+import Topbar from '../components/Shell/Topbar.astro';
+import { getEnv } from '../lib/http';
+import { requireSession } from '../lib/auth';
+import { listCases, type CaseListRow } from '../lib/cases';
+
+const env = getEnv(Astro.locals);
+const guard = await requireSession(Astro.request, env);
+if (!guard) return Astro.redirect('/login');
+Astro.response.headers.append('set-cookie', guard.setCookie);
+
+let cases: CaseListRow[] = [];
+try {
+  cases = await listCases(env, 200);
+} catch {
+  cases = [];
+}
+const highCount = cases.filter((c) => c.risk === 'HIGH').length;
+const medCount = cases.filter((c) => c.risk === 'MEDIUM').length;
+const activeCount = cases.filter((c) => c.status === 'ACTIVE').length;
+---
+
+<Layout title="IntelTrace — Case Registry">
+  <div class="shell">
+    <Sidebar activePage="history" />
+    <main class="main">
+      <Topbar
+        title="Case Registry"
+        subtitle="Complete forensic case history · Search, filter, and export"
+        breadcrumb={[{ label: 'Case Registry' }]}
+      />
+
+      <div class="page-body">
+        <!-- Search + Filter Bar -->
+        <div class="card card-p reveal" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="position:relative;flex:1;min-width:240px">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input
+              type="text"
+              id="case-search"
+              placeholder="Search by suspect name or case ID..."
+              oninput="filterCases()"
+              style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border-1);border-radius:8px;padding:9px 12px 9px 36px;color:var(--text-1);font-size:0.78rem;font-family:'Inter',sans-serif;outline:none;transition:all 0.2s"
+              onfocus="this.style.borderColor='rgba(0,212,255,0.4)';this.style.background='rgba(0,212,255,0.04)'"
+              onblur="this.style.borderColor='var(--border-1)';this.style.background='rgba(255,255,255,0.04)'"
+            />
+          </div>
+
+          <div style="display:flex;gap:4px;background:rgba(255,255,255,0.03);border:1px solid var(--border-1);border-radius:8px;padding:3px" id="filter-btns">
+            {['All', 'High', 'Medium', 'Low', 'Active', 'Closed'].map((f, i) => (
+              <button
+                class={`tab-btn ${i === 0 ? 'active' : ''}`}
+                data-filter={f.toLowerCase()}
+                onclick="setFilter(this)"
+                style="padding:5px 10px;font-size:0.72rem"
+              >{f}</button>
+            ))}
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button id="export-csv-btn" onclick="exportCSV()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid var(--border-1);border-radius:8px;padding:8px 12px;font-size:0.72rem;color:var(--text-2);cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <a href="/new-investigation" class="cta-btn" style="padding:8px 12px;font-size:0.72rem">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Case
+            </a>
+          </div>
+        </div>
+
+        <!-- Stats Summary -->
+        <div class="card card-p reveal" style="padding:14px 20px">
+          <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-1)">{cases.length}</span>
+              <span style="font-size:0.68rem;color:var(--text-3);text-transform:uppercase;font-family:'DM Mono',monospace">Total Cases</span>
+            </div>
+            <div style="width:1px;height:24px;background:var(--border-1)"></div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#FF4757">{highCount}</span>
+              <span style="font-size:0.68rem;color:var(--text-3);text-transform:uppercase;font-family:'DM Mono',monospace">High Risk</span>
+            </div>
+            <div style="width:1px;height:24px;background:var(--border-1)"></div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#FFB300">{medCount}</span>
+              <span style="font-size:0.68rem;color:var(--text-3);text-transform:uppercase;font-family:'DM Mono',monospace">Medium Risk</span>
+            </div>
+            <div style="width:1px;height:24px;background:var(--border-1)"></div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#00E676">{activeCount}</span>
+              <span style="font-size:0.68rem;color:var(--text-3);text-transform:uppercase;font-family:'DM Mono',monospace">Active Investigations</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cases Table -->
+        <div class="card reveal" style="overflow:hidden">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.76rem" id="cases-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;padding:12px 16px;text-align:center;border-bottom:1px solid var(--border-1)">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" style="cursor:pointer;accent-color:var(--cyan)"/>
+                  </th>
+                  {['Case ID', 'Suspect Name', 'Date Created', 'Data Sources', 'Risk Level', 'Risk Score', 'Correlations', 'Status', 'Actions'].map(h => (
+                    <th style="text-align:left;font-size:0.6rem;font-family:'DM Mono',monospace;color:var(--text-3);letter-spacing:0.08em;padding:12px 16px;border-bottom:1px solid var(--border-1);white-space:nowrap;background:rgba(255,255,255,0.01)">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody id="cases-tbody">
+                {cases.length === 0 && (
+                  <tr>
+                    <td colspan="10" style="padding:26px 16px;text-align:center;color:var(--text-3);font-size:0.78rem">
+                      No cases on record — <a href="/new-investigation" style="color:var(--cyan);text-decoration:none;font-weight:600">start a new investigation →</a>
+                    </td>
+                  </tr>
+                )}
+                {cases.map(c => (
+                  <tr
+                    class="case-row"
+                    data-risk={c.risk.toLowerCase()}
+                    data-status={c.status.toLowerCase()}
+                    data-id={c.id.toLowerCase()}
+                    data-suspect={c.suspect.toLowerCase()}
+                    onclick={`window.location='/results?case=${encodeURIComponent(c.id)}'`}
+                    style="cursor:pointer;transition:background 0.15s;border-bottom:1px solid rgba(255,255,255,0.04)"
+                    onmouseover="this.style.background='rgba(255,255,255,0.025)'"
+                    onmouseout="this.style.background=''"
+                  >
+                    <td style="padding:12px 16px;text-align:center" onclick="event.stopPropagation()">
+                      <input type="checkbox" class="case-check" style="cursor:pointer;accent-color:var(--cyan)"/>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--cyan)">{c.id}</span>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <div style="font-weight:600;color:var(--text-1)">{c.suspect}</div>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <span style="font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--text-3)">{c.date}</span>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <div style="display:flex;flex-wrap:wrap;gap:3px">
+                        {c.sources.map(s => (
+                          <span class={`badge b-${s.toLowerCase()}`}>{s}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <span class={`badge b-${c.risk.toLowerCase()}`}>{c.risk}</span>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style={`font-family:'DM Mono',monospace;font-size:0.82rem;font-weight:700;color:${c.score >= 80 ? '#FF4757' : c.score >= 50 ? '#FFB300' : '#00E676'}`}>{c.score}</span>
+                        <div class="risk-track" style="width:50px">
+                          <div class="risk-fill" style={`width:${c.score}%;background:${c.score >= 80 ? '#FF4757' : c.score >= 50 ? '#FFB300' : '#00E676'}`}></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <span style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--text-2)">{c.correlations} found</span>
+                    </td>
+                    <td style="padding:12px 16px">
+                      <span class={`badge b-${c.status.toLowerCase()}`}>{c.status}</span>
+                    </td>
+                    <td style="padding:12px 16px" onclick="event.stopPropagation()">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <a href={`/results?case=${encodeURIComponent(c.id)}`} style="display:flex;align-items:center;gap:4px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:var(--cyan);border-radius:6px;padding:4px 8px;font-size:0.68rem;text-decoration:none;font-weight:600">
+                          View
+                        </a>
+                        <button onclick={`toggleCaseStatus('${c.id}', '${c.status}')`} style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.04);border:1px solid var(--border-1);color:var(--text-2);border-radius:6px;padding:4px 8px;font-size:0.68rem;cursor:pointer;transition:all 0.2s" onmouseover="this.style.color='var(--text-1)';this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='var(--text-2)';this.style.background='rgba(255,255,255,0.04)'">
+                          {c.status === 'CLOSED' ? 'Reopen' : 'Close'}
+                        </button>
+                        <button onclick={`deleteCase('${c.id}')`} style="display:flex;align-items:center;gap:4px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);color:#FF4757;border-radius:6px;padding:4px 8px;font-size:0.68rem;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='rgba(255,71,87,0.15)'" onmouseout="this.style.background='rgba(255,71,87,0.08)'">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script type="application/json" id="cases-data" set:html={JSON.stringify(cases)}></script>
+
+<script is:inline>
+let currentFilter = 'all';
+
+function getCasesData() {
+  try {
+    return JSON.parse(document.getElementById('cases-data')?.textContent || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function setFilter(btn) {
+  document.querySelectorAll('#filter-btns .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  filterCases();
+}
+
+function filterCases() {
+  const query = (document.getElementById('case-search')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('.case-row');
+
+  rows.forEach(row => {
+    const risk = row.dataset.risk;
+    const status = row.dataset.status;
+    const id = row.dataset.id;
+    const suspect = row.dataset.suspect;
+
+    const matchesFilter =
+      currentFilter === 'all' ||
+      risk === currentFilter ||
+      status === currentFilter;
+
+    const matchesSearch =
+      !query ||
+      id.includes(query) ||
+      suspect.includes(query);
+
+    row.style.display = (matchesFilter && matchesSearch) ? '' : 'none';
+  });
+}
+
+function toggleSelectAll(master) {
+  document.querySelectorAll('.case-check').forEach(cb => {
+    cb.checked = master.checked;
+  });
+}
+
+function exportCSV() {
+  const all = getCasesData();
+  // Respect the current search/filter: only export rows currently visible.
+  const visible = new Set();
+  document.querySelectorAll('.case-row').forEach(row => {
+    if (row.style.display !== 'none') visible.add(row.dataset.id);
+  });
+  const rows = all.filter(c => visible.has(String(c.id).toLowerCase()));
+  const data = rows.length ? rows : all;
+
+  const cols = ['Case ID', 'Suspect', 'Date', 'Sources', 'Risk', 'Score', 'Correlations', 'Anomalies', 'Status'];
+  const esc = (v) => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [cols.join(',')];
+  data.forEach(c => {
+    lines.push([
+      c.id,
+      c.suspect,
+      c.date,
+      (c.sources || []).join(' | '),
+      c.risk,
+      c.score,
+      c.correlations,
+      c.anomalies,
+      c.status,
+    ].map(esc).join(','));
+  });
+  // BOM so Excel reads UTF-8 correctly.
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'inteltrace-cases-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function toggleCaseStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'CLOSED' ? 'ACTIVE' : 'CLOSED';
+  if (!confirm(`Are you sure you want to ${newStatus === 'CLOSED' ? 'close' : 'reopen'} case ${id}?`)) return;
+  try {
+    const res = await fetch(`/api/cases/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      alert('Failed to update case status');
+    }
+  } catch (err) {
+    alert('An error occurred');
+  }
+}
+
+async function deleteCase(id) {
+  if (!confirm(`WARNING: Are you sure you want to permanently delete case ${id}? This action cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/cases/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      alert('Failed to delete case');
+    }
+  } catch (err) {
+    alert('An error occurred');
+  }
+}
+
+window.addEventListener('load', function() {
+  if (typeof gsap !== 'undefined') {
+    gsap.utils.toArray('.reveal').forEach(function(el, i) {
+      gsap.fromTo(el, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.05 * i });
+    });
+  }
+});
+</script>
